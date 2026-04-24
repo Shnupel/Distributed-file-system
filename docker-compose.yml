@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dfs-postgres
+    environment:
+      POSTGRES_USER: dfs_user
+      POSTGRES_PASSWORD: dfs_password
+      POSTGRES_DB: dfs_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dfs_user -d dfs_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dfs_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: dfs-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dfs_network
+
+  app:
+    build: .
+    container_name: dfs-app
+    environment:
+      DEBUG: "false"
+      DATABASE_URL: postgresql+asyncpg://dfs_user:dfs_password@postgres:5432/dfs_db
+      REDIS_URL: redis://redis:6379/0
+      ACCESS_SECRET: change_me_access_secret_at_least_32_chars
+      REFRESH_SECRET: change_me_refresh_secret_at_least_32_chars
+      ACCESS_TOKEN_EXPIRE_M: "15"
+      REFRESH_TOKEN_EXPIRE_M: "43200"
+      COOKIE_SECURE: "true"
+      COOKIE_SAMESITE: "strict"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - dfs_network
+
+volumes:
+  postgres_data:
+
+networks:
+  dfs_network:
+    driver: bridge
