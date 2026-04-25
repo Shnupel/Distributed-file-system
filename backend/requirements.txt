@@ -2,6 +2,7 @@
 fastapi==0.136.0
 uvicorn[standard]==0.44.0
 python-multipart==0.0.26
+httpx==0.28.1
 
 # Settings and env
 pydantic==2.13.2

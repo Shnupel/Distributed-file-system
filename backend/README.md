@@ -1,8 +1,14 @@
-# FastAPI JWT Auth
+# DFS Master + Storage Nodes
 
-Production-oriented JWT authentication service built with FastAPI, PostgreSQL, and Redis.
+Monorepo backend for a distributed file system built on FastAPI.
 
-Implements secure token-based authentication with access/refresh token rotation, Redis-backed revocation, and a fully async layered architecture designed for scalability and maintainability.
+It contains:
+
+- `app` - master node (auth, metadata, manifests, replication coordinator)
+- `storage_app` - storage node (chunk storage/read endpoints)
+- `shared` - shared contracts and cryptography helpers used by both apps
+
+Master auth is production-oriented JWT with access/refresh token rotation, Redis-backed revocation, and async PostgreSQL.
 
 ## What Is Implemented
 
@@ -16,6 +22,15 @@ Implements secure token-based authentication with access/refresh token rotation,
 - Alembic migration setup
 - Centralized exception handling
 - Basic rate limiting middleware (SlowAPI)
+- DFS metadata schema: files/folders (`fs_entries`), `chunks`, `chunk_replicas`, `storage_nodes`
+- DFS upload flow with chunking on master and replication to storage nodes
+- Replication quorum checks (`DFS_WRITE_QUORUM`)
+- Download manifest with signed chunk URLs
+- Storage node app with:
+  - `GET /health`
+  - `POST /chunks/{chunk_id}` (internal token protected)
+  - `GET /chunks/{chunk_id}` (signed URL protected)
+  - `DELETE /chunks/{chunk_id}` (internal token protected)
 
 ## Tech Stack
 
@@ -51,6 +66,13 @@ Implements secure token-based authentication with access/refresh token rotation,
 |  |- schemas/
 |  |- services/
 |  |- utils/
+|- storage_app/
+|  |- main.py
+|  |- config.py
+|- shared/
+|  |- security.py
+|  |- constants.py
+|  |- contracts/
 |- alembic.ini
 |- requirements.txt
 |- .env.template
@@ -76,6 +98,15 @@ Implements secure token-based authentication with access/refresh token rotation,
 | POST | `/api/v1/refresh` | No | Rotate refresh token and issue new access token |
 | POST | `/api/v1/logout` | No | Revoke current refresh token and clear cookie |
 | GET | `/api/v1/about_me` | Bearer | Get current authenticated user |
+| POST | `/api/v1/dfs/nodes` | Bearer | Register storage node in master metadata |
+| GET | `/api/v1/dfs/nodes` | Bearer | List storage nodes |
+| POST | `/api/v1/dfs/nodes/{node_id}/heartbeat` | Bearer | Update node heartbeat and free space |
+| POST | `/api/v1/dfs/directories` | Bearer | Create directory |
+| GET | `/api/v1/dfs/entries` | Bearer | List directory entries |
+| POST | `/api/v1/dfs/files/upload` | Bearer | Upload file to DFS (master chunks + replicates) |
+| GET | `/api/v1/dfs/files/{file_id}/manifest` | Bearer | Get signed download manifest |
+| DELETE | `/api/v1/dfs/files/{file_id}` | Bearer | Delete file and chunk replicas |
+| GET | `/api/v1/dfs/chunks/{chunk_id}` | Signed URL | Stream local chunk via master |
 
 ## Quick Start
 
@@ -135,6 +166,18 @@ Set the required variables:
 | `REFRESH_TOKEN_EXPIRE_M` | No | Default: `43200` |
 | `COOKIE_SECURE` | No | Default: `true` |
 | `COOKIE_SAMESITE` | No | One of `lax`, `strict`, `none` |
+| `DFS_MASTER_PUBLIC_BASE_URL` | No | Base URL used for local chunk links in manifest |
+| `DFS_CHUNK_SIZE_BYTES` | No | Default: `4194304` (4 MiB) |
+| `DFS_MANIFEST_URL_TTL_S` | No | Signed chunk URL TTL, default `300` |
+| `DFS_LOCAL_CHUNKS_DIR` | No | Local chunk storage path for master-local node |
+| `DFS_LOCAL_NODE_NAME` | No | Name of built-in local storage node |
+| `DFS_REPLICATION_FACTOR` | No | Number of target nodes per chunk |
+| `DFS_WRITE_QUORUM` | No | Required successful replicas per chunk |
+| `DFS_STORAGE_TIMEOUT_S` | No | Timeout for master -> storage HTTP calls |
+| `DFS_CHUNK_URL_SECRET` | Yes | Shared with storage app, min length 32 |
+| `DFS_INTERNAL_TOKEN` | Yes | Shared internal token, min length 32 |
+| `STORAGE_NODE_NAME` | No | Storage app node name |
+| `STORAGE_CHUNKS_DIR` | No | Local chunk dir used by storage app |
 
 Important for local HTTP development:
 
@@ -147,10 +190,25 @@ Important for local HTTP development:
 alembic upgrade head
 ```
 
-### 6. Start the app
+### 6. Start master app
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### 7. Start storage app (same repository)
+
+```bash
+uvicorn storage_app.main:app --reload --host 0.0.0.0 --port 8010
+```
+
+Then register this node in master metadata:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/dfs/nodes" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"storage-node-1","base_url":"http://127.0.0.1:8010"}'
 ```
 
 Open:
@@ -239,7 +297,6 @@ alembic downgrade -1
 
 ## Current Limitations
 
-- No email verification flow
-- No password reset flow
-- No role-based authorization checks (role field exists but is not enforced)
+- No background repair/rebalance workers yet
+- No direct browser-to-storage upload yet (upload still goes through master)
 - No automated test suite in repository yet
