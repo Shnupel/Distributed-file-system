@@ -1,8 +1,10 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user_id, get_dfs_service
+from app.api.dependencies import get_current_user_id, get_dfs_service, require_admin, require_admin_or_internal
 from app.api.middlewares import limiter
 from app.db import db_helper
 from app.schemas import (
@@ -14,19 +16,22 @@ from app.schemas import (
     StorageNodeCreate,
     StorageNodeHeartbeat,
     StorageNodeRead,
+    StorageNodeResolvedRead,
 )
 from app.services import DFSService
 
 
 router = APIRouter(prefix="/dfs", tags=["dfs"])
+AdminOnly = Annotated[object, Depends(require_admin)]
+AdminOrInternal = Annotated[object | None, Depends(require_admin_or_internal)]
 
 
-@router.post("/nodes", response_model=StorageNodeRead, status_code=status.HTTP_201_CREATED)
+@router.post("/nodes", response_model=StorageNodeResolvedRead, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 async def register_storage_node(
     request: Request,
     payload: StorageNodeCreate,
-    _: int = Depends(get_current_user_id),
+    _: AdminOrInternal = None,
     session: AsyncSession = Depends(db_helper.session_getter),
     service: DFSService = Depends(get_dfs_service),
 ):
@@ -35,7 +40,7 @@ async def register_storage_node(
 
 @router.get("/nodes", response_model=list[StorageNodeRead])
 async def list_storage_nodes(
-    _: int = Depends(get_current_user_id),
+    _: AdminOnly = None,
     session: AsyncSession = Depends(db_helper.session_getter),
     service: DFSService = Depends(get_dfs_service),
 ):
@@ -48,7 +53,7 @@ async def heartbeat_storage_node(
     request: Request,
     node_id: int,
     payload: StorageNodeHeartbeat,
-    _: int = Depends(get_current_user_id),
+    _: AdminOrInternal = None,
     session: AsyncSession = Depends(db_helper.session_getter),
     service: DFSService = Depends(get_dfs_service),
 ):

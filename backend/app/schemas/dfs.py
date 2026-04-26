@@ -30,6 +30,10 @@ class StorageNodeRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class StorageNodeResolvedRead(StorageNodeRead):
+    already_exists: bool = False
+
+
 class DirectoryCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     parent_id: int | None = Field(default=None, ge=1)
