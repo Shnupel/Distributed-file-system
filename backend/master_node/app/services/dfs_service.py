@@ -196,8 +196,7 @@ class DFSService:
             await session.commit()
             await session.refresh(existing)
 
-            return StorageNodeResolvedRead.model_validate(
-                existing,
+            return StorageNodeResolvedRead.model_validate(existing).model_copy(
                 update={"already_exists": True},
             )
 
@@ -219,7 +218,9 @@ class DFSService:
             await session.rollback()
             raise FsEntryAlreadyExists("Storage node with this name already exists") from exc
 
-        return StorageNodeResolvedRead.model_validate(node, update={"already_exists": False})
+        return StorageNodeResolvedRead.model_validate(node).model_copy(
+            update={"already_exists": False},
+        )
 
     async def heartbeat_storage_node(
         self,

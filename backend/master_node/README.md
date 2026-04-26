@@ -1,12 +1,11 @@
-# DFS Master + Storage Nodes
+# DFS Master Node
 
 Monorepo backend for a distributed file system built on FastAPI.
 
 It contains:
 
 - `app` - master node (auth, metadata, manifests, replication coordinator)
-- `storage_app` - storage node (chunk storage/read endpoints)
-- `shared` - shared contracts and cryptography helpers used by both apps
+- `shared` - DFS contracts and cryptography helpers used by the master
 
 Master auth is production-oriented JWT with access/refresh token rotation, Redis-backed revocation, and async PostgreSQL.
 
@@ -26,11 +25,7 @@ Master auth is production-oriented JWT with access/refresh token rotation, Redis
 - DFS upload flow with chunking on master and replication to storage nodes
 - Replication quorum checks (`DFS_WRITE_QUORUM`)
 - Download manifest with signed chunk URLs
-- Storage node app with:
-  - `GET /health`
-  - `POST /chunks/{chunk_id}` (internal token protected)
-  - `GET /chunks/{chunk_id}` (signed URL protected)
-  - `DELETE /chunks/{chunk_id}` (internal token protected)
+- Integration with external storage node microservices over HTTP
 
 ## Tech Stack
 
@@ -66,9 +61,6 @@ Master auth is production-oriented JWT with access/refresh token rotation, Redis
 |  |- schemas/
 |  |- services/
 |  |- utils/
-|- storage_app/
-|  |- main.py
-|  |- config.py
 |- shared/
 |  |- security.py
 |  |- constants.py
@@ -174,10 +166,8 @@ Set the required variables:
 | `DFS_REPLICATION_FACTOR` | No | Number of target nodes per chunk |
 | `DFS_WRITE_QUORUM` | No | Required successful replicas per chunk |
 | `DFS_STORAGE_TIMEOUT_S` | No | Timeout for master -> storage HTTP calls |
-| `DFS_CHUNK_URL_SECRET` | Yes | Shared with storage app, min length 32 |
+| `DFS_CHUNK_URL_SECRET` | Yes | Shared with storage service, min length 32 |
 | `DFS_INTERNAL_TOKEN` | Yes | Shared internal token, min length 32 |
-| `STORAGE_NODE_NAME` | No | Storage app node name |
-| `STORAGE_CHUNKS_DIR` | No | Local chunk dir used by storage app |
 
 Important for local HTTP development:
 
@@ -196,10 +186,13 @@ alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 7. Start storage app (same repository)
+### 7. Start storage node microservice
 
 ```bash
-uvicorn storage_app.main:app --reload --host 0.0.0.0 --port 8010
+cd ../storage_node
+pip install -r requirements.txt
+cp .env.template .env
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8010
 ```
 
 Then register this node in master metadata:

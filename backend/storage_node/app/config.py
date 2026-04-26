@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings
 
 class StorageSettings(BaseSettings):
     storage_node_name: str = "storage-node"
+    storage_public_base_url: str = "http://127.0.0.1:8010"
     storage_chunks_dir: str = "storage-node/chunks"
     dfs_master_base_url: str = "http://127.0.0.1:8000"
     dfs_heartbeat_interval_s: int = 15
@@ -27,6 +28,13 @@ class StorageSettings(BaseSettings):
             raise ValueError("DFS master base url must start with http:// or https://")
         return value.rstrip("/")
 
+    @field_validator("storage_public_base_url")
+    @classmethod
+    def validate_storage_public_base_url(cls, value: str) -> str:
+        if not value.startswith(("http://", "https://")):
+            raise ValueError("Storage public base url must start with http:// or https://")
+        return value.rstrip("/")
+
     @field_validator("dfs_heartbeat_interval_s")
     @classmethod
     def validate_heartbeat_interval(cls, value: int) -> int:
@@ -35,7 +43,7 @@ class StorageSettings(BaseSettings):
         return value
 
     class Config:
-        env_file = ".env.storage"
+        env_file = ".env"
         frozen = True
 
 

@@ -33,7 +33,7 @@ def _chunks_dir(settings: StorageSettings) -> Path:
 def _node_payload(settings: StorageSettings) -> dict[str, str]:
     return {
         "name": settings.storage_node_name,
-        "base_url": "http://127.0.0.1:8010",
+        "base_url": settings.storage_public_base_url,
     }
 
 
@@ -75,6 +75,7 @@ async def _send_heartbeat(client: httpx.AsyncClient, settings: StorageSettings, 
 async def _heartbeat_loop(settings: StorageSettings) -> None:
     timeout = httpx.Timeout(10.0)
     node_id: int | None = None
+    logger = logging.getLogger(__name__)
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         while True:
@@ -83,7 +84,8 @@ async def _heartbeat_loop(settings: StorageSettings) -> None:
                     node_id = await _resolve_node_id(client, settings)
                 if node_id is not None:
                     await _send_heartbeat(client, settings, node_id)
-            except Exception:
+            except Exception as exc:
+                logger.warning("Failed to register heartbeat with master: %s", exc)
                 node_id = None
 
             await asyncio.sleep(settings.dfs_heartbeat_interval_s)

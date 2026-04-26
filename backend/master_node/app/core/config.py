@@ -97,7 +97,7 @@ class Settings(BaseSettings):
         return self
 
     class Config:
-        env_file = ".env.master"
+        env_file = ".env"
         frozen = True
 
 

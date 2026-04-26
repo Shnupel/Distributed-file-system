@@ -10,7 +10,7 @@ from app.lifespan import lifespan
 settings = get_settings()
 
 app = FastAPI(
-    title="My Auth API",
+    title="DFS Master Node API",
     version="1.0.0",
     debug=settings.debug,
     lifespan=lifespan,
