@@ -28,6 +28,12 @@ class TokenInvalidError(AppException):
     detail = "Token is invalid"
 
 
+# Access exceptions
+class PermissionDenied(AppException):
+    status_code = 403
+    detail = "You do not have permission to perform this action"
+
+
 # User Exceptions
 class UserNotFound(AppException):
     status_code = 404

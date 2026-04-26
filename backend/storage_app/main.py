@@ -1,7 +1,12 @@
+import asyncio
+import contextlib
+
+import httpx
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse
 
 import hashlib
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from shutil import disk_usage
@@ -23,6 +28,80 @@ def _chunks_dir(settings: StorageSettings) -> Path:
     path = Path(settings.storage_chunks_dir)
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def _node_payload(settings: StorageSettings) -> dict[str, str]:
+    return {
+        "name": settings.storage_node_name,
+        "base_url": "http://127.0.0.1:8010",
+    }
+
+
+async def _storage_usage(settings: StorageSettings) -> tuple[int, int]:
+    chunks_path = _chunks_dir(settings)
+    usage = await asyncio.to_thread(disk_usage, chunks_path)
+    return usage.total, usage.free
+
+
+async def _resolve_node_id(client: httpx.AsyncClient, settings: StorageSettings) -> int | None:
+    total_space, free_space = await _storage_usage(settings)
+    response = await client.post(
+        f"{settings.dfs_master_base_url}/api/v1/dfs/nodes",
+        json={
+            **_node_payload(settings),
+            "total_space": total_space,
+            "free_space": free_space,
+        },
+        headers={INTERNAL_TOKEN_HEADER: settings.dfs_internal_token},
+    )
+    response.raise_for_status()
+    payload = response.json()
+    return payload.get("id")
+
+
+async def _send_heartbeat(client: httpx.AsyncClient, settings: StorageSettings, node_id: int) -> None:
+    total_space, free_space = await _storage_usage(settings)
+    response = await client.post(
+        f"{settings.dfs_master_base_url}/api/v1/dfs/nodes/{node_id}/heartbeat",
+        json={
+            "total_space": total_space,
+            "free_space": free_space,
+        },
+        headers={INTERNAL_TOKEN_HEADER: settings.dfs_internal_token},
+    )
+    response.raise_for_status()
+
+
+async def _heartbeat_loop(settings: StorageSettings) -> None:
+    timeout = httpx.Timeout(10.0)
+    node_id: int | None = None
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        while True:
+            try:
+                if node_id is None:
+                    node_id = await _resolve_node_id(client, settings)
+                if node_id is not None:
+                    await _send_heartbeat(client, settings, node_id)
+            except Exception:
+                node_id = None
+
+            await asyncio.sleep(settings.dfs_heartbeat_interval_s)
+
+
+@app.on_event("startup")
+async def startup() -> None:
+    settings = get_storage_settings()
+    app.state.heartbeat_task = asyncio.create_task(_heartbeat_loop(settings))
+
+
+@app.on_event("shutdown")
+async def shutdown() -> None:
+    heartbeat_task: asyncio.Task | None = getattr(app.state, "heartbeat_task", None)
+    if heartbeat_task is not None:
+        heartbeat_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await heartbeat_task
 
 
 @app.get("/health", response_model=StorageHealthResponse)

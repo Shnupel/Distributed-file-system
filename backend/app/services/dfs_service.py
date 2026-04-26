@@ -33,6 +33,7 @@ from app.schemas import (
     FileUploadRead,
     StorageNodeCreate,
     StorageNodeHeartbeat,
+    StorageNodeResolvedRead,
 )
 from shared import INTERNAL_TOKEN_HEADER, build_chunk_signature, is_chunk_signature_valid
 
@@ -178,10 +179,27 @@ class DFSService:
         self,
         session: AsyncSession,
         payload: StorageNodeCreate,
-    ) -> StorageNode:
+    ) -> StorageNodeResolvedRead:
         existing = await self.dfs_crud.get_storage_node_by_name(session, payload.name)
         if existing is not None:
-            raise FsEntryAlreadyExists("Storage node with this name already exists")
+            if existing.base_url != payload.base_url:
+                raise FsEntryAlreadyExists("Storage node with this name already exists")
+
+            if payload.total_space is not None and existing.total_space != payload.total_space:
+                existing.total_space = payload.total_space
+            if payload.free_space is not None and existing.free_space != payload.free_space:
+                existing.free_space = payload.free_space
+
+            existing.is_active = True
+            existing.last_heartbeat = datetime.now(timezone.utc)
+
+            await session.commit()
+            await session.refresh(existing)
+
+            return StorageNodeResolvedRead.model_validate(
+                existing,
+                update={"already_exists": True},
+            )
 
         node = StorageNode(
             name=payload.name,
@@ -201,7 +219,7 @@ class DFSService:
             await session.rollback()
             raise FsEntryAlreadyExists("Storage node with this name already exists") from exc
 
-        return node
+        return StorageNodeResolvedRead.model_validate(node, update={"already_exists": False})
 
     async def heartbeat_storage_node(
         self,
