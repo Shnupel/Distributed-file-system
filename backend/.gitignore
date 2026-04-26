@@ -152,6 +152,7 @@ activemq-data/
 .env.master
 .env.storage
 .envrc
+.idea/
 .venv
 env/
 venv/
