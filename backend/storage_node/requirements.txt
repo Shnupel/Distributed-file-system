@@ -1,0 +1,9 @@
+# Web API
+fastapi==0.136.0
+uvicorn[standard]==0.44.0
+httpx==0.28.1
+
+# Settings and env
+pydantic==2.13.2
+pydantic-settings==2.13.1
+python-dotenv==1.2.2

@@ -1,0 +1,27 @@
+# Web API
+fastapi==0.136.0
+uvicorn[standard]==0.44.0
+python-multipart==0.0.26
+httpx==0.28.1
+
+# Settings and env
+pydantic==2.13.2
+pydantic[email]==2.13.2
+pydantic-settings==2.13.1
+python-dotenv==1.2.2
+
+# Security
+PyJWT==2.12.1
+passlib[argon2]==1.7.4
+
+# Rate limiting
+slowapi==0.1.9
+
+# Database and migrations
+SQLAlchemy==2.0.49
+alembic==1.18.4
+asyncpg==0.31.0
+redis==7.4.0
+
+# Formatter
+black==26.3.1
