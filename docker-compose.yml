@@ -31,9 +31,11 @@ services:
     networks:
       - dfs_network
 
-  app:
-    build: .
-    container_name: dfs-app
+  master-node:
+    build:
+      context: backend/master_node
+      dockerfile: Dockerfile
+    container_name: dfs-master-node
     environment:
       DEBUG: "false"
       DATABASE_URL: postgresql+asyncpg://dfs_user:dfs_password@postgres:5432/dfs_db
@@ -42,10 +44,10 @@ services:
       REFRESH_SECRET: change_me_refresh_secret_at_least_32_chars
       ACCESS_TOKEN_EXPIRE_M: "15"
       REFRESH_TOKEN_EXPIRE_M: "43200"
-      COOKIE_SECURE: "true"
-      COOKIE_SAMESITE: "strict"
+      COOKIE_SECURE: "false"
+      COOKIE_SAMESITE: "lax"
     ports:
-      - "8000:8000"
+      - "8001:8001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,8 +56,68 @@ services:
     networks:
       - dfs_network
 
+  storage-node-1:
+    build:
+      context: backend/storage_node
+      dockerfile: Dockerfile
+    container_name: dfs-storage-node-1
+    environment:
+      NODE_ID: storage-node-1
+      REDIS_URL: redis://redis:6379/1
+      MASTER_NODE_URL: http://master-node:8001
+    ports:
+      - "8002:8002"
+    volumes:
+      - storage_node_1:/storage
+    depends_on:
+      - redis
+      - master-node
+    networks:
+      - dfs_network
+
+  storage-node-2:
+    build:
+      context: backend/storage_node
+      dockerfile: Dockerfile
+    container_name: dfs-storage-node-2
+    environment:
+      NODE_ID: storage-node-2
+      REDIS_URL: redis://redis:6379/2
+      MASTER_NODE_URL: http://master-node:8001
+    ports:
+      - "8003:8002"
+    volumes:
+      - storage_node_2:/storage
+    depends_on:
+      - redis
+      - master-node
+    networks:
+      - dfs_network
+
+  storage-node-3:
+    build:
+      context: backend/storage_node
+      dockerfile: Dockerfile
+    container_name: dfs-storage-node-3
+    environment:
+      NODE_ID: storage-node-3
+      REDIS_URL: redis://redis:6379/3
+      MASTER_NODE_URL: http://master-node:8001
+    ports:
+      - "8004:8002"
+    volumes:
+      - storage_node_3:/storage
+    depends_on:
+      - redis
+      - master-node
+    networks:
+      - dfs_network
+
 volumes:
   postgres_data:
+  storage_node_1:
+  storage_node_2:
+  storage_node_3:
 
 networks:
   dfs_network:
