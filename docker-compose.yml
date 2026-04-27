@@ -36,6 +36,7 @@ services:
       context: backend/master_node
       dockerfile: Dockerfile
     container_name: dfs-master-node
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8001"
     environment:
       DEBUG: "false"
       DATABASE_URL: postgresql+asyncpg://dfs_user:dfs_password@postgres:5432/dfs_db
