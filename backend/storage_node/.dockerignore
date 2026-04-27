@@ -22,3 +22,6 @@ build/
 node_modules/
 .git/
 .gitignore
+alembic/versions/__pycache__/
+master_node/
+master-node/
