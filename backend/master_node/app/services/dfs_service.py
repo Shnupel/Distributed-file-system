@@ -326,6 +326,7 @@ class DFSService:
         await self.dfs_crud.create_entry(session, entry)
         await session.commit()
         await session.refresh(entry)
+        entry_id = entry.id
 
         cleanup_targets: list[ReplicaCleanupTarget] = []
         chunk_count = 0
@@ -412,19 +413,19 @@ class DFSService:
             await session.refresh(entry)
         except (ReplicationQuorumNotReached, StorageNodeUnavailable, FileUploadFailed):
             await session.rollback()
-            await self._mark_entry_failed(session, owner_id, entry.id)
+            await self._mark_entry_failed(session, owner_id, entry_id)
             await self._cleanup_uploaded_replicas(cleanup_targets)
             raise
         except Exception as exc:
             await session.rollback()
-            await self._mark_entry_failed(session, owner_id, entry.id)
+            await self._mark_entry_failed(session, owner_id, entry_id)
             await self._cleanup_uploaded_replicas(cleanup_targets)
             raise FileUploadFailed() from exc
         finally:
             await upload.close()
 
         return FileUploadRead(
-            file_id=entry.id,
+            file_id=entry_id,
             file_name=entry.name,
             size=entry.size,
             chunks_count=chunk_count,
