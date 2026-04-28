@@ -118,6 +118,20 @@ services:
     networks:
       - dfs_network
 
+  frontend:
+    build:
+      context: ./frontend # путь к папке с фронтендом
+      dockerfile: Dockerfile
+    container_name: dfs-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8001 # URL для браузерных запросов
+    depends_on:
+      - master-node
+    networks:
+      - dfs_network
+
 volumes:
   postgres_data:
   storage_node_1:
