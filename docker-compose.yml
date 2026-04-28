@@ -43,6 +43,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       ACCESS_SECRET: change_me_access_secret_at_least_32_chars
       REFRESH_SECRET: change_me_refresh_secret_at_least_32_chars
+      DFS_MASTER_PUBLIC_BASE_URL: http://localhost:8001
       ACCESS_TOKEN_EXPIRE_M: "15"
       REFRESH_TOKEN_EXPIRE_M: "43200"
       COOKIE_SECURE: "false"
