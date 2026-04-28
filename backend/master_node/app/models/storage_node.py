@@ -16,6 +16,7 @@ class StorageNode(Base):
 
     name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     base_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    internal_base_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(
         Boolean,

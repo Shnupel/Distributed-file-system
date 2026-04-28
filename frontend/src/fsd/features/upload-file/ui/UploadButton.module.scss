@@ -1,0 +1,14 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.input {
+  display: none;
+}
+
+.error {
+  font-size: 0.75rem;
+  color: #9a3b18;
+}

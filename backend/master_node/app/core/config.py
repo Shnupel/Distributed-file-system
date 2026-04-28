@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     cookie_secure: bool = True
     cookie_samesite: Literal["lax", "strict", "none"] = "strict"
 
+    cors_allow_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    cors_allow_credentials: bool = True
+    cors_allow_methods: list[str] = ["*"]
+    cors_allow_headers: list[str] = ["*"]
+
     dfs_master_public_base_url: str = "http://127.0.0.1:8000"
     dfs_chunk_size_bytes: int = 4 * 1024 * 1024
     dfs_manifest_url_ttl_s: int = 300
@@ -31,7 +36,7 @@ class Settings(BaseSettings):
     dfs_chunk_url_secret: str = "CHANGE_ME_DFS_CHUNK_URL_SECRET_MIN_32_CHARS"
     dfs_internal_token: str = "CHANGE_ME_DFS_INTERNAL_TOKEN_MIN_32_CHARS"
     dfs_replication_factor: int = 2
-    dfs_write_quorum: int = 2
+    dfs_write_quorum: int = 1
     dfs_storage_timeout_s: int = 10
 
     @field_validator("database_url")
@@ -68,6 +73,25 @@ class Settings(BaseSettings):
     def validate_dfs_secret_length(cls, value: str) -> str:
         if len(value) < 32:
             raise ValueError("DFS secret must be at least 32 characters long")
+        return value
+
+    @field_validator("cors_allow_origins", mode="before")
+    @classmethod
+    def parse_cors_allow_origins(cls, value: object) -> list[str]:
+        return cls._parse_cors_list(value, ["http://localhost:3000", "http://127.0.0.1:3000"])
+
+    @field_validator("cors_allow_methods", "cors_allow_headers", mode="before")
+    @classmethod
+    def parse_cors_lists(cls, value: object) -> list[str]:
+        return cls._parse_cors_list(value, ["*"])
+
+    @staticmethod
+    def _parse_cors_list(value: object, default: list[str]) -> list[str]:
+        if isinstance(value, str):
+            if value.strip() == "*":
+                return ["*"]
+            items = [item.strip() for item in value.split(",") if item.strip()]
+            return items or default
         return value
 
     @field_validator(

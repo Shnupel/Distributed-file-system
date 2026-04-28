@@ -36,12 +36,14 @@ services:
       context: backend/master_node
       dockerfile: Dockerfile
     container_name: dfs-master-node
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8001"
     environment:
       DEBUG: "false"
       DATABASE_URL: postgresql+asyncpg://dfs_user:dfs_password@postgres:5432/dfs_db
       REDIS_URL: redis://redis:6379/0
       ACCESS_SECRET: change_me_access_secret_at_least_32_chars
       REFRESH_SECRET: change_me_refresh_secret_at_least_32_chars
+      DFS_MASTER_PUBLIC_BASE_URL: http://localhost:8001
       ACCESS_TOKEN_EXPIRE_M: "15"
       REFRESH_TOKEN_EXPIRE_M: "43200"
       COOKIE_SECURE: "false"
@@ -62,9 +64,10 @@ services:
       dockerfile: Dockerfile
     container_name: dfs-storage-node-1
     environment:
-      NODE_ID: storage-node-1
-      REDIS_URL: redis://redis:6379/1
-      MASTER_NODE_URL: http://master-node:8001
+      STORAGE_NODE_NAME: storage-node-1
+      DFS_MASTER_BASE_URL: http://master-node:8001
+      STORAGE_PUBLIC_BASE_URL: http://localhost:8002
+      STORAGE_INTERNAL_BASE_URL: http://storage-node-1:8002
     ports:
       - "8002:8002"
     volumes:
@@ -81,9 +84,10 @@ services:
       dockerfile: Dockerfile
     container_name: dfs-storage-node-2
     environment:
-      NODE_ID: storage-node-2
-      REDIS_URL: redis://redis:6379/2
-      MASTER_NODE_URL: http://master-node:8001
+      STORAGE_NODE_NAME: storage-node-2
+      DFS_MASTER_BASE_URL: http://master-node:8001
+      STORAGE_PUBLIC_BASE_URL: http://localhost:8003
+      STORAGE_INTERNAL_BASE_URL: http://storage-node-2:8002
     ports:
       - "8003:8002"
     volumes:
@@ -100,15 +104,30 @@ services:
       dockerfile: Dockerfile
     container_name: dfs-storage-node-3
     environment:
-      NODE_ID: storage-node-3
-      REDIS_URL: redis://redis:6379/3
-      MASTER_NODE_URL: http://master-node:8001
+      STORAGE_NODE_NAME: storage-node-3
+      DFS_MASTER_BASE_URL: http://master-node:8001
+      STORAGE_PUBLIC_BASE_URL: http://localhost:8004
+      STORAGE_INTERNAL_BASE_URL: http://storage-node-3:8002
     ports:
       - "8004:8002"
     volumes:
       - storage_node_3:/storage
     depends_on:
       - redis
+      - master-node
+    networks:
+      - dfs_network
+
+  frontend:
+    build:
+      context: ./frontend # путь к папке с фронтендом
+      dockerfile: Dockerfile
+    container_name: dfs-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8001 # URL для браузерных запросов
+    depends_on:
       - master-node
     networks:
       - dfs_network

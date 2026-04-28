@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class StorageNodeCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=128)
     base_url: str | None = Field(default=None, max_length=512)
+    internal_base_url: str | None = Field(default=None, max_length=512)
     total_space: int | None = Field(default=None, ge=0)
     free_space: int | None = Field(default=None, ge=0)
 
@@ -19,6 +20,7 @@ class StorageNodeRead(BaseModel):
     id: int
     name: str
     base_url: str | None
+    internal_base_url: str | None
     is_active: bool
     is_local: bool
     total_space: int | None
