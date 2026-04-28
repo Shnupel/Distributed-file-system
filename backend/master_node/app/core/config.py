@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     dfs_local_node_name: str = "master-local"
     dfs_chunk_url_secret: str = "CHANGE_ME_DFS_CHUNK_URL_SECRET_MIN_32_CHARS"
     dfs_internal_token: str = "CHANGE_ME_DFS_INTERNAL_TOKEN_MIN_32_CHARS"
-    dfs_replication_factor: int = 1
+    dfs_replication_factor: int = 2
     dfs_write_quorum: int = 1
     dfs_storage_timeout_s: int = 10
 
