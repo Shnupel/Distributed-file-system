@@ -3,6 +3,7 @@ import contextlib
 
 import httpx
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 import hashlib
@@ -22,6 +23,13 @@ from .config import StorageSettings, get_storage_settings
 
 
 app = FastAPI(title="DFS Storage Node", version="1.0.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def _chunks_dir(settings: StorageSettings) -> Path:
@@ -30,10 +38,12 @@ def _chunks_dir(settings: StorageSettings) -> Path:
     return path
 
 
-def _node_payload(settings: StorageSettings) -> dict[str, str]:
+def _node_payload(settings: StorageSettings) -> dict[str, str | None]:
+    internal_base_url = settings.storage_internal_base_url or settings.storage_public_base_url
     return {
         "name": settings.storage_node_name,
         "base_url": settings.storage_public_base_url,
+        "internal_base_url": internal_base_url,
     }
 
 

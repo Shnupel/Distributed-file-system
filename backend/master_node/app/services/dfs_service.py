@@ -43,7 +43,7 @@ class ReplicaCleanupTarget:
     chunk_id: int
     is_local: bool
     storage_path: str
-    base_url: str | None
+    internal_base_url: str | None
 
 
 class DFSService:
@@ -61,6 +61,7 @@ class DFSService:
         node = StorageNode(
             name=self.settings.dfs_local_node_name,
             base_url=self.master_public_base_url,
+            internal_base_url=self.master_public_base_url,
             is_active=True,
             is_local=True,
             last_heartbeat=datetime.now(timezone.utc),
@@ -122,10 +123,11 @@ class DFSService:
         payload: bytes,
         chunk_hash: str,
     ) -> tuple[bool, str, str | None]:
-        if not node.base_url:
+        base_url = node.internal_base_url or node.base_url
+        if not base_url:
             return False, "", "Node base_url is empty"
 
-        url = f"{node.base_url.rstrip('/')}/chunks/{chunk_id}"
+        url = f"{base_url.rstrip('/')}/chunks/{chunk_id}"
         headers = {INTERNAL_TOKEN_HEADER: self.settings.dfs_internal_token}
 
         try:
@@ -156,12 +158,12 @@ class DFSService:
                         continue
                     continue
 
-                if not replica.base_url:
+                if not replica.internal_base_url:
                     continue
 
                 try:
                     await client.delete(
-                        f"{replica.base_url.rstrip('/')}/chunks/{replica.chunk_id}",
+                        f"{replica.internal_base_url.rstrip('/')}/chunks/{replica.chunk_id}",
                         headers={INTERNAL_TOKEN_HEADER: self.settings.dfs_internal_token},
                     )
                 except httpx.HTTPError:
@@ -182,8 +184,10 @@ class DFSService:
     ) -> StorageNodeResolvedRead:
         existing = await self.dfs_crud.get_storage_node_by_name(session, payload.name)
         if existing is not None:
-            if existing.base_url != payload.base_url:
-                raise FsEntryAlreadyExists("Storage node with this name already exists")
+            if payload.base_url is not None and existing.base_url != payload.base_url:
+                existing.base_url = payload.base_url
+            if payload.internal_base_url is not None and existing.internal_base_url != payload.internal_base_url:
+                existing.internal_base_url = payload.internal_base_url
 
             if payload.total_space is not None and existing.total_space != payload.total_space:
                 existing.total_space = payload.total_space
@@ -203,6 +207,7 @@ class DFSService:
         node = StorageNode(
             name=payload.name,
             base_url=payload.base_url,
+            internal_base_url=payload.internal_base_url,
             total_space=payload.total_space,
             free_space=payload.free_space,
             is_active=True,
@@ -377,10 +382,11 @@ class DFSService:
                                 chunk_hash,
                             )
 
+                        node_internal_base_url = node.internal_base_url or node.base_url or ""
                         replica = ChunkReplica(
                             chunk_id=chunk.id,
                             node_id=node.id,
-                            storage_path=storage_path or f"{node.base_url or ''}/chunks/{chunk.id}",
+                            storage_path=storage_path or f"{node_internal_base_url}/chunks/{chunk.id}",
                             status="stored" if stored else "failed",
                         )
                         await self.dfs_crud.create_replica(session, replica)
@@ -392,7 +398,7 @@ class DFSService:
                                     chunk_id=chunk.id,
                                     is_local=node.is_local,
                                     storage_path=storage_path,
-                                    base_url=node.base_url,
+                                    internal_base_url=node.internal_base_url or node.base_url,
                                 )
                             )
                         elif node.is_local and last_error:
@@ -466,11 +472,12 @@ class DFSService:
                         f"{self.master_public_base_url}{API_V1_PREFIX}/dfs/chunks/{chunk.id}"
                         f"?exp={expires_at}&sig={signature}"
                     )
-                elif node.base_url:
-                    base_url = node.base_url.rstrip("/")
-                    url = f"{base_url}/chunks/{chunk.id}?exp={expires_at}&sig={signature}"
                 else:
-                    continue
+                    base_url = node.base_url or node.internal_base_url
+                    if not base_url:
+                        continue
+                    base_url = base_url.rstrip("/")
+                    url = f"{base_url}/chunks/{chunk.id}?exp={expires_at}&sig={signature}"
 
                 replica_items.append(
                     ChunkReplicaURLRead(

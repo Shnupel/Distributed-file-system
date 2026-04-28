@@ -49,7 +49,8 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8010
 ## Environment Variables
 
 - `STORAGE_NODE_NAME`: node name in master metadata
-- `STORAGE_PUBLIC_BASE_URL`: public URL used by master to access this node
+- `STORAGE_PUBLIC_BASE_URL`: public URL used in download manifests
+- `STORAGE_INTERNAL_BASE_URL`: internal URL for master-to-storage calls (can match public in local dev)
 - `STORAGE_CHUNKS_DIR`: local path for chunks
 - `DFS_MASTER_BASE_URL`: master base URL
 - `DFS_HEARTBEAT_INTERVAL_S`: heartbeat interval in seconds

@@ -201,7 +201,7 @@ Then register this node in master metadata:
 curl -X POST "http://127.0.0.1:8000/api/v1/dfs/nodes" \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
-  -d '{"name":"storage-node-1","base_url":"http://127.0.0.1:8010"}'
+  -d '{"name":"storage-node-1","base_url":"http://127.0.0.1:8010","internal_base_url":"http://127.0.0.1:8010"}'
 ```
 
 Open:

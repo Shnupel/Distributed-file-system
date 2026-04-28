@@ -67,6 +67,7 @@ services:
       STORAGE_NODE_NAME: storage-node-1
       DFS_MASTER_BASE_URL: http://master-node:8001
       STORAGE_PUBLIC_BASE_URL: http://localhost:8002
+      STORAGE_INTERNAL_BASE_URL: http://storage-node-1:8002
     ports:
       - "8002:8002"
     volumes:
@@ -86,6 +87,7 @@ services:
       STORAGE_NODE_NAME: storage-node-2
       DFS_MASTER_BASE_URL: http://master-node:8001
       STORAGE_PUBLIC_BASE_URL: http://localhost:8003
+      STORAGE_INTERNAL_BASE_URL: http://storage-node-2:8002
     ports:
       - "8003:8002"
     volumes:
@@ -105,6 +107,7 @@ services:
       STORAGE_NODE_NAME: storage-node-3
       DFS_MASTER_BASE_URL: http://master-node:8001
       STORAGE_PUBLIC_BASE_URL: http://localhost:8004
+      STORAGE_INTERNAL_BASE_URL: http://storage-node-3:8002
     ports:
       - "8004:8002"
     volumes:
